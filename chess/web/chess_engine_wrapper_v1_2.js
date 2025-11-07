@@ -34,8 +34,8 @@ class ChessEngineWASM {
       const normalizedBaseUrl = baseUrl.endsWith("/")
         ? baseUrl.slice(0, -1)
         : baseUrl;
-      const jsUrl = `${normalizedBaseUrl}/chess_wasm.js`;
-      const wasmFileUrl = `${normalizedBaseUrl}/chess_wasm.wasm`;
+      const jsUrl = `${normalizedBaseUrl}/chess_wasm_v1.js`;
+      const wasmFileUrl = `${normalizedBaseUrl}/chess_wasm_v1.wasm`;
 
       console.log(`📁 Loading JS from: ${jsUrl}`);
       console.log(`📁 WASM file URL: ${wasmFileUrl}`);
@@ -45,7 +45,7 @@ class ChessEngineWASM {
 
       // Access the global ChessEngine function (not Module)
       if (typeof ChessEngine === "undefined") {
-        throw new Error("chess_wasm.js did not expose ChessEngine function");
+        throw new Error("chess_wasm_v1.js did not expose ChessEngine function");
       }
 
       console.log("🔧 Initializing ChessEngine module...");
