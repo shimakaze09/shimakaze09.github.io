@@ -27,7 +27,9 @@ class ChessEngineWASM {
       console.log("🔄 Loading chess engine WASM module...");
 
       // Normalize the base URL
-      const normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+      const normalizedBaseUrl = baseUrl.endsWith("/")
+        ? baseUrl.slice(0, -1)
+        : baseUrl;
       const jsUrl = `${normalizedBaseUrl}/chess_wasm.js`;
       const wasmFileUrl = `${normalizedBaseUrl}/chess_wasm.wasm`;
 
@@ -37,15 +39,18 @@ class ChessEngineWASM {
       // Load the script using script tag instead of dynamic import to avoid CORS issues
       await this.loadScript(jsUrl);
 
-      // Access the global Module function
-      if (typeof Module === "undefined") {
-        throw new Error("chess_wasm.js did not expose Module function");
+      // Access the global ChessEngine function (not Module)
+      if (typeof ChessEngine === "undefined") {
+        throw new Error("chess_wasm.js did not expose ChessEngine function");
       }
 
-      // Initialize the WebAssembly module
-      this.module = await Module({
+      console.log("🔧 Initializing ChessEngine module...");
+
+      // Initialize the WebAssembly module using ChessEngine
+      this.module = await ChessEngine({
         locateFile: (path, prefix) => {
           if (path.endsWith(".wasm")) {
+            console.log(`🎯 Locating WASM file: ${wasmFileUrl}`);
             return wasmFileUrl;
           }
           return prefix + path;
