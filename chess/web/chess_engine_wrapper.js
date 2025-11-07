@@ -22,13 +22,34 @@ class ChessEngineWASM {
         this.chess_get_fen = null;
     }
 
-    async loadModule(wasmPath, jsPath) {
+    async loadModule(baseUrl = './') {
         try {
             console.log('🔄 Loading chess engine WASM module...');
             
-            // Load the WebAssembly module
-            const ChessEngine = await import(jsPath);
-            this.module = await ChessEngine.default();
+            // Determine the correct URLs
+            const wasmUrl = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+            const jsUrl = wasmUrl + 'chess_wasm.js';
+            const wasmFileUrl = wasmUrl + 'chess_wasm.wasm';
+            
+            console.log(`📁 Loading from: ${jsUrl}`);
+            
+            // Load the script using script tag instead of dynamic import to avoid CORS issues
+            await this.loadScript(jsUrl);
+            
+            // Access the global Module function
+            if (typeof Module === 'undefined') {
+                throw new Error('chess_wasm.js did not expose Module function');
+            }
+            
+            // Initialize the WebAssembly module
+            this.module = await Module({
+                locateFile: (path, prefix) => {
+                    if (path.endsWith('.wasm')) {
+                        return wasmFileUrl;
+                    }
+                    return prefix + path;
+                }
+            });
             
             console.log('✅ WASM module loaded successfully');
             
@@ -43,6 +64,16 @@ class ChessEngineWASM {
             console.error('❌ Failed to load WASM module:', error);
             return false;
         }
+    }
+
+    loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
     }
 
     setupFunctionWrappers() {
