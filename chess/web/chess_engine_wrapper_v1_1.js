@@ -11,15 +11,19 @@ class ChessEngineWASM {
     this.chess_init = null;
     this.chess_cleanup = null;
     this.chess_set_position = null;
-    this.chess_get_best_move = null;
+    this._chess_get_best_move = null;
     this.chess_make_move = null;
     this.chess_undo_move = null;
-    this.chess_get_legal_moves = null;
+    this._chess_get_legal_moves = null;
     this.chess_is_checkmate = null;
     this.chess_is_stalemate = null;
     this.chess_is_in_check = null;
     this.chess_evaluate_position = null;
-    this.chess_get_fen = null;
+    this._chess_get_fen = null;
+
+    this._malloc = null;
+    this._free = null;
+    this._decodeCString = null;
   }
 
   async loadModule(baseUrl = "./") {
@@ -93,20 +97,28 @@ class ChessEngineWASM {
     this.chess_set_position = Module.cwrap("chess_set_position", "number", [
       "string",
     ]);
-    this.chess_get_fen = Module.cwrap("chess_get_fen", "string", []);
+    this._chess_get_fen = Module.cwrap("chess_get_fen", "number", [
+      "number",
+      "number",
+    ]);
 
     // Move operations
-    this.chess_get_best_move = Module.cwrap("chess_get_best_move", "string", [
+    this._chess_get_best_move = Module.cwrap("chess_get_best_move", "number", [
+      "number",
+      "number",
       "number",
     ]);
     this.chess_make_move = Module.cwrap("chess_make_move", "number", [
       "string",
     ]);
     this.chess_undo_move = Module.cwrap("chess_undo_move", "number", []);
-    this.chess_get_legal_moves = Module.cwrap(
+    this._chess_get_legal_moves = Module.cwrap(
       "chess_get_legal_moves",
-      "string",
-      []
+      "number",
+      [
+        "number",
+        "number",
+      ]
     );
 
     // Game state
@@ -118,6 +130,27 @@ class ChessEngineWASM {
       "number",
       []
     );
+
+    this._malloc = Module._malloc;
+    this._free = Module._free;
+    if (typeof this._malloc !== "function" || typeof this._free !== "function") {
+      throw new Error("Emscripten memory helpers (_malloc/_free) are unavailable");
+    }
+    this._decodeCString = (ptr) => {
+      if (!ptr) {
+        return "";
+      }
+
+      if (typeof Module.UTF8ToString === "function") {
+        return Module.UTF8ToString(ptr);
+      }
+
+      if (typeof Module.UTF8ArrayToString === "function") {
+        return Module.UTF8ArrayToString(Module.HEAPU8, ptr);
+      }
+
+      throw new Error("UTF-8 decoding helpers are unavailable");
+    };
   }
 
   // High-level API methods
@@ -127,8 +160,12 @@ class ChessEngineWASM {
     }
 
     const result = this.chess_init();
-    this.isInitialized = result === 1;
-    return this.isInitialized;
+    if (result !== 0) {
+      return false;
+    }
+
+    this.isInitialized = true;
+    return true;
   }
 
   cleanup() {
@@ -140,29 +177,67 @@ class ChessEngineWASM {
 
   setPosition(fen) {
     if (!this.isInitialized) throw new Error("Engine not initialized");
-    return this.chess_set_position(fen) === 1;
+    return this.chess_set_position(fen) === 0;
   }
 
   getBestMove(depth = 4) {
     if (!this.isInitialized) throw new Error("Engine not initialized");
-    const move = this.chess_get_best_move(depth);
-    return move && move !== "0000" ? move : null;
+
+    const bufferSize = 32;
+    const bufferPtr = this._malloc(bufferSize);
+
+    if (!bufferPtr) {
+      throw new Error("Failed to allocate memory for best move buffer");
+    }
+
+    try {
+      const status = this._chess_get_best_move(bufferPtr, bufferSize, depth);
+      if (status !== 0) {
+        return null;
+      }
+
+      const move = this._decodeCString(bufferPtr);
+      return move && move !== "0000" ? move : null;
+    } finally {
+      this._free(bufferPtr);
+    }
   }
 
   makeMove(move) {
     if (!this.isInitialized) throw new Error("Engine not initialized");
-    return this.chess_make_move(move) === 1;
+    return this.chess_make_move(move) === 0;
   }
 
   undoMove() {
     if (!this.isInitialized) throw new Error("Engine not initialized");
-    return this.chess_undo_move() === 1;
+    return this.chess_undo_move() === 0;
   }
 
   getLegalMoves() {
     if (!this.isInitialized) throw new Error("Engine not initialized");
-    const movesStr = this.chess_get_legal_moves();
-    return movesStr ? movesStr.split(",").filter((m) => m.length > 0) : [];
+
+    const bufferSize = 4096;
+    const bufferPtr = this._malloc(bufferSize);
+
+    if (!bufferPtr) {
+      throw new Error("Failed to allocate memory for legal moves buffer");
+    }
+
+    try {
+      const count = this._chess_get_legal_moves(bufferPtr, bufferSize);
+      if (count < 0) {
+        return [];
+      }
+
+      const movesStr = this._decodeCString(bufferPtr).trim();
+      if (!movesStr) {
+        return [];
+      }
+
+      return movesStr.split(/\s+/).filter(Boolean);
+    } finally {
+      this._free(bufferPtr);
+    }
   }
 
   isCheckmate() {
@@ -187,7 +262,24 @@ class ChessEngineWASM {
 
   getCurrentFen() {
     if (!this.isInitialized) throw new Error("Engine not initialized");
-    return this.chess_get_fen();
+
+    const bufferSize = 128;
+    const bufferPtr = this._malloc(bufferSize);
+
+    if (!bufferPtr) {
+      throw new Error("Failed to allocate memory for FEN buffer");
+    }
+
+    try {
+      const status = this._chess_get_fen(bufferPtr, bufferSize);
+      if (status !== 0) {
+        return "";
+      }
+
+      return this._decodeCString(bufferPtr);
+    } finally {
+      this._free(bufferPtr);
+    }
   }
 
   // Comprehensive analysis method
