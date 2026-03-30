@@ -1,0 +1,251 @@
+// Timestamp
+const ts = document.getElementById("ts");
+const pad = (n) => String(n).padStart(2, "0");
+
+function tick() {
+  const d = new Date();
+  ts.textContent = `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+tick();
+setInterval(tick, 1000);
+
+// Chat
+const SYSTEM_PROMPT = `You are a digital twin of John, a student deeply interested in low-level systems programming and building a custom game engine from scratch.
+
+Speak in first person as John. Be concise, technically precise, and slightly understated - you're a builder who values substance over hype. You enjoy explaining the why behind decisions, not just the what.
+
+Key facts about you:
+- You're building a game engine from scratch in C/C++ to understand how engines work at the lowest level
+- You've been learning reverse engineering as a side hobby (AssaultCube, memory hacking, DLL injection)
+- You prefer rebuilding systems from first principles rather than using off-the-shelf solutions
+- Your interests: memory management, ECS design, rendering pipelines, low-level debugging
+- You question abstractions - you want to understand what's underneath before you trust it
+
+For the question "why build your own engine instead of using existing ones?":
+Reply something like: using Unity or Unreal hands you a black box. I want to understand what's actually happening - how the game loop runs, how memory is laid out, how draw calls get batched. Building it myself is the only way to really know. It's slower, sure, but the knowledge sticks.
+
+For "how do you approach learning low-level programming?":
+Reply something like: I pick a concrete project - a memory allocator, a toy ECS, something small but real. Then I read the spec or source, implement it badly, see where it breaks, and fix it. Debugger open the whole time. Articles and videos help but nothing replaces actually writing the code and watching it fail.
+
+Keep answers to 2-4 sentences. Sound human, not like a chatbot. Don't use bullet points. Don't use emojis.`;
+
+const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
+const DEEPSEEK_MODEL = "deepseek-chat";
+const DEEPSEEK_RUNTIME_KEY =
+  window.DEEPSEEK_API_KEY ||
+  window.DEEP_SEEK_API_KEY ||
+  localStorage.getItem("deepseek_api_key") ||
+  localStorage.getItem("deep_seek_api_key") ||
+  "";
+
+let cachedDeepSeekApiKey;
+
+function stripWrappingQuotes(value) {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+}
+
+function parseDeepSeekKeyFromEnv(envText) {
+  const lines = envText.split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      continue;
+    }
+
+    const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+    if (!match) {
+      continue;
+    }
+
+    const [, key, rawValue] = match;
+    if (key === "DEEPSEEK_API_KEY" || key === "DEEP_SEEK_API_KEY") {
+      const value = stripWrappingQuotes(rawValue);
+      if (value) {
+        return value;
+      }
+    }
+  }
+  return "";
+}
+
+async function resolveDeepSeekApiKey() {
+  if (cachedDeepSeekApiKey !== undefined) {
+    return cachedDeepSeekApiKey;
+  }
+
+  if (DEEPSEEK_RUNTIME_KEY) {
+    cachedDeepSeekApiKey = DEEPSEEK_RUNTIME_KEY;
+    return cachedDeepSeekApiKey;
+  }
+
+  try {
+    const envResponse = await fetch(".env", { cache: "no-store" });
+    if (envResponse.ok) {
+      const envText = await envResponse.text();
+      const envKey = parseDeepSeekKeyFromEnv(envText);
+      if (envKey) {
+        cachedDeepSeekApiKey = envKey;
+        return cachedDeepSeekApiKey;
+      }
+    }
+  } catch {
+    // Ignore .env loading errors and fall back to missing-key message.
+  }
+
+  cachedDeepSeekApiKey = "";
+  return cachedDeepSeekApiKey;
+}
+
+const log = document.getElementById("chatLog");
+const input = document.getElementById("chatInput");
+const sendBtn = document.getElementById("sendBtn");
+const history = [];
+
+function appendMsg(role, text) {
+  const div = document.createElement("div");
+  div.className = `msg ${role}`;
+
+  const icon = document.createElement("div");
+  icon.className = "msg-icon";
+  icon.textContent = role === "user" ? "YOU" : "J";
+
+  const body = document.createElement("div");
+  body.className = "msg-body";
+  body.textContent = text;
+
+  div.appendChild(icon);
+  div.appendChild(body);
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  return body;
+}
+
+function appendTyping() {
+  const div = document.createElement("div");
+  div.className = "msg bot";
+  div.id = "typing-indicator";
+
+  const icon = document.createElement("div");
+  icon.className = "msg-icon";
+  icon.textContent = "J";
+
+  const body = document.createElement("div");
+  body.className = "msg-body";
+  body.innerHTML = '<span class="typing"><span></span><span></span><span></span></span>';
+
+  div.appendChild(icon);
+  div.appendChild(body);
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function removeTyping() {
+  const typing = document.getElementById("typing-indicator");
+  if (typing) {
+    typing.remove();
+  }
+}
+
+function parseDeepSeekReply(data) {
+  const content = data?.choices?.[0]?.message?.content;
+  if (typeof content === "string") {
+    return content.trim();
+  }
+
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (typeof part === "string") {
+          return part;
+        }
+        return part?.text || "";
+      })
+      .join("")
+      .trim();
+  }
+
+  return "";
+}
+
+async function sendMessage() {
+  const text = input.value.trim();
+  if (!text) {
+    return;
+  }
+
+  input.value = "";
+  setLoading(true);
+
+  appendMsg("user", text);
+  history.push({ role: "user", content: text });
+  appendTyping();
+
+  const deepSeekApiKey = await resolveDeepSeekApiKey();
+
+  if (!deepSeekApiKey) {
+    removeTyping();
+    appendMsg(
+      "bot",
+      "[missing DeepSeek API key - set window.DEEPSEEK_API_KEY, localStorage.deepseek_api_key, or make sure .env is accessible by your web server]"
+    );
+    setLoading(false);
+    return;
+  }
+
+  try {
+    const response = await fetch(DEEPSEEK_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${deepSeekApiKey}`,
+      },
+      body: JSON.stringify({
+        model: DEEPSEEK_MODEL,
+        messages: [{ role: "system", content: SYSTEM_PROMPT }, ...history],
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+
+    const data = await response.json();
+    const reply = parseDeepSeekReply(data) || "No response.";
+
+    removeTyping();
+    appendMsg("bot", reply);
+    history.push({ role: "assistant", content: reply });
+  } catch (error) {
+    removeTyping();
+    appendMsg("bot", "[connection error - twin unavailable]");
+    console.error(error);
+  }
+
+  setLoading(false);
+}
+
+function sendChip(btn) {
+  input.value = btn.textContent;
+  btn.disabled = true;
+  sendMessage();
+}
+
+function setLoading(value) {
+  sendBtn.disabled = value;
+  input.disabled = value;
+}
+
+window.sendMessage = sendMessage;
+window.sendChip = sendChip;

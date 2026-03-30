@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>John — Systems & Engine Dev</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div class="noise-bg"></div>
+
+  <div class="container">
+
+    <!-- TOP BAR -->
+    <div class="topbar">
+      <span class="logo">SYS://JOHN</span>
+      <span class="status"><span class="dot"></span>ONLINE</span>
+    </div>
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="avatar">
+        <div class="avatar-inner">J</div>
+      </div>
+      <div class="hero-text">
+        <div class="hero-name">John</div>
+        <div class="hero-intro">// building systems from first principles</div>
+        <div class="hero-tags">
+          <span class="tag">C/C++</span>
+          <span class="tag">game engine dev</span>
+          <span class="tag">systems programming</span>
+          <span class="tag">low-level</span>
+          <span class="tag">reverse engineering</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- INFO -->
+    <section class="section">
+      <div class="section-label">01 / info</div>
+      <div class="info-grid">
+        <div class="info-cell">
+          <div class="info-key">status</div>
+          <div class="info-val accent">student · active</div>
+        </div>
+        <div class="info-cell">
+          <div class="info-key">focus</div>
+          <div class="info-val">custom game engine</div>
+        </div>
+        <div class="info-cell">
+          <div class="info-key">primary language</div>
+          <div class="info-val">C / C++17</div>
+        </div>
+        <div class="info-cell">
+          <div class="info-key">interests</div>
+          <div class="info-val">engine arch · memory systems · rendering pipelines</div>
+        </div>
+        <div class="info-cell full">
+          <div class="info-key">trait</div>
+          <div class="info-val">Questions existing abstractions. Prefers rebuilding from first principles over using
+            off-the-shelf solutions.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DIGITAL TWIN CHAT -->
+    <section class="section">
+      <div class="section-label">02 / digital twin</div>
+      <div class="chat-wrapper">
+        <div class="chat-header">
+          <div class="chat-header-left">
+            <span class="dot"></span>
+            <span class="chat-title">TWIN_INSTANCE</span>
+          </div>
+          <span class="chat-subtitle">ask me anything</span>
+        </div>
+
+        <div class="chat-log" id="chatLog">
+          <!-- seeded message -->
+          <div class="msg bot">
+            <div class="msg-icon">J</div>
+            <div class="msg-body">Hey. I'm John's digital twin - ask me about my engine work, how I learn low-level
+              systems, or why I'm not just using Unity.</div>
+          </div>
+        </div>
+
+        <!-- Quick chips -->
+        <div class="chips" id="chipsRow">
+          <button class="chip" onclick="sendChip(this)">why build your own engine?</button>
+          <button class="chip" onclick="sendChip(this)">how do you learn low-level programming?</button>
+          <button class="chip" onclick="sendChip(this)">what are you working on now?</button>
+        </div>
+
+        <div class="chat-input-row">
+          <input class="chat-input" id="chatInput" placeholder="> type your question..." autocomplete="off"
+            onkeydown="if(event.key==='Enter') sendMessage()" />
+          <button class="chat-send" id="sendBtn" onclick="sendMessage()">SEND -></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+      <span>john · systems & engine dev</span>
+      <span id="ts"></span>
+    </footer>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
