@@ -40,79 +40,20 @@ Boundaries:
 
 Keep answers to 2-4 sentences. Sound human, not like a chatbot. Don't use bullet points. Don't use emojis.`;
 
-const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
+const hostName = window.location.hostname;
+const isLocalHost = hostName === "localhost" || hostName === "127.0.0.1";
+const isGitHubPages = hostName.endsWith("github.io");
+const configuredChatApiUrl =
+  typeof window.SITE_CONFIG?.chatApiUrl === "string"
+    ? window.SITE_CONFIG.chatApiUrl.trim()
+    : typeof window.CHAT_API_URL === "string"
+      ? window.CHAT_API_URL.trim()
+      : "";
+
+const BACKEND_API_URL = isLocalHost
+  ? "http://localhost:3000/api/chat"
+  : configuredChatApiUrl || "/api/chat";
 const DEEPSEEK_MODEL = "deepseek-chat";
-const DEEPSEEK_RUNTIME_KEY =
-  window.DEEPSEEK_API_KEY ||
-  window.DEEP_SEEK_API_KEY ||
-  localStorage.getItem("deepseek_api_key") ||
-  localStorage.getItem("deep_seek_api_key") ||
-  "";
-
-let cachedDeepSeekApiKey;
-
-function stripWrappingQuotes(value) {
-  const trimmed = value.trim();
-  if (
-    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-    (trimmed.startsWith("'") && trimmed.endsWith("'"))
-  ) {
-    return trimmed.slice(1, -1).trim();
-  }
-  return trimmed;
-}
-
-function parseDeepSeekKeyFromEnv(envText) {
-  const lines = envText.split(/\r?\n/);
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) {
-      continue;
-    }
-
-    const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
-    if (!match) {
-      continue;
-    }
-
-    const [, key, rawValue] = match;
-    if (key === "DEEPSEEK_API_KEY" || key === "DEEP_SEEK_API_KEY") {
-      const value = stripWrappingQuotes(rawValue);
-      if (value) {
-        return value;
-      }
-    }
-  }
-  return "";
-}
-
-async function resolveDeepSeekApiKey() {
-  if (cachedDeepSeekApiKey !== undefined) {
-    return cachedDeepSeekApiKey;
-  }
-
-  if (DEEPSEEK_RUNTIME_KEY) {
-    cachedDeepSeekApiKey = DEEPSEEK_RUNTIME_KEY;
-    return cachedDeepSeekApiKey;
-  }
-
-  try {
-    const envResponse = await fetch(".env", { cache: "no-store" });
-    if (envResponse.ok) {
-      const envText = await envResponse.text();
-      const envKey = parseDeepSeekKeyFromEnv(envText);
-      if (envKey) {
-        cachedDeepSeekApiKey = envKey;
-        return cachedDeepSeekApiKey;
-      }
-    }
-  } catch {
-    // Ignore .env loading errors and fall back to missing-key message.
-  }
-
-  cachedDeepSeekApiKey = "";
-  return cachedDeepSeekApiKey;
-}
 
 const log = document.getElementById("chatLog");
 const input = document.getElementById("chatInput");
@@ -198,24 +139,21 @@ async function sendMessage() {
   history.push({ role: "user", content: text });
   appendTyping();
 
-  const deepSeekApiKey = await resolveDeepSeekApiKey();
-
-  if (!deepSeekApiKey) {
+  if (isGitHubPages && !configuredChatApiUrl) {
     removeTyping();
     appendMsg(
       "bot",
-      "[missing DeepSeek API key - set window.DEEPSEEK_API_KEY, localStorage.deepseek_api_key, or make sure .env is accessible by your web server]"
+      "[chat backend is not configured yet - set window.SITE_CONFIG.chatApiUrl in site.config.js to your Vercel URL, for example: https://your-project.vercel.app/api/chat]"
     );
     setLoading(false);
     return;
   }
 
   try {
-    const response = await fetch(DEEPSEEK_API_URL, {
+    const response = await fetch(BACKEND_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${deepSeekApiKey}`,
       },
       body: JSON.stringify({
         model: DEEPSEEK_MODEL,
