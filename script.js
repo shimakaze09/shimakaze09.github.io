@@ -213,6 +213,7 @@ async function sendMessage() {
         model: DEEPSEEK_MODEL,
         messages: [{ role: "system", content: SYSTEM_PROMPT }, ...history],
         temperature: 0.7,
+        stream: true,
       }),
     });
 
@@ -221,12 +222,42 @@ async function sendMessage() {
       throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
 
-    const data = await response.json();
-    const reply = parseDeepSeekReply(data) || "No response.";
-
     removeTyping();
-    appendMsg("bot", reply);
-    history.push({ role: "assistant", content: reply });
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let aiReply = "";
+
+    const msgElement = appendMsg("bot", "");
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split("\n");
+
+      for (const line of lines) {
+        if (line.trim() === "data: [DONE]") continue;
+        if (line.startsWith("data: ")) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            const delta = data.choices?.[0]?.delta?.content || "";
+            aiReply += delta;
+            msgElement.textContent = aiReply;
+            log.scrollTop = log.scrollHeight;
+          } catch (e) {
+            // ignore chunk parse errors
+          }
+        }
+      }
+    }
+
+    if (!aiReply) {
+      aiReply = "No response.";
+      msgElement.textContent = aiReply;
+    }
+
+    history.push({ role: "assistant", content: aiReply });
   } catch (error) {
     removeTyping();
     appendMsg("bot", "[connection error - twin unavailable]");
@@ -238,13 +269,16 @@ async function sendMessage() {
 
 function sendChip(btn) {
   input.value = btn.textContent;
-  btn.disabled = true;
   sendMessage();
 }
 
 function setLoading(value) {
   sendBtn.disabled = value;
   input.disabled = value;
+  const chips = document.querySelectorAll(".chip");
+  chips.forEach((chip) => {
+    chip.disabled = value;
+  });
 }
 
 window.sendMessage = sendMessage;

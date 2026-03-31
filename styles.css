@@ -241,10 +241,41 @@ body::before {
   grid-column: 1 / -1;
 }
 
+/* PROJECT IMAGES */
+.project-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  justify-content: space-between;
+  margin-top: 8px; /* space between key and val */
+}
+
+.project-desc {
+  flex: 1;
+}
+
+.project-img {
+  max-width: 45%; 
+  height: auto;
+  border: 1px solid var(--border);
+  display: block;
+  object-fit: contain;
+}
+
 /* DIGITAL TWIN CHAT */
 .chat-wrapper {
-  border: 1px solid var(--border);
+  border: 1px solid var(--muted);
   background: var(--surface);
+  box-shadow: 0 0 15px rgba(0, 200, 255, 0.05);
+  position: relative;
+}
+
+.chat-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
 }
 
 .chat-header {
@@ -485,6 +516,15 @@ footer {
 
   .info-cell.full {
     grid-column: auto;
+  }
+
+  .project-content {
+    flex-direction: column;
+  }
+
+  .project-img {
+    max-width: 100%;
+    margin-top: 14px;
   }
 
   .hero-name {
