@@ -41,7 +41,6 @@ Boundaries:
 Keep answers to 2-4 sentences. Sound human, not like a chatbot. Don't use bullet points. Don't use emojis.`;
 
 const hostName = window.location.hostname;
-const isLocalHost = hostName === "localhost" || hostName === "127.0.0.1";
 const isGitHubPages = hostName.endsWith("github.io");
 const configuredChatApiUrl =
   typeof window.SITE_CONFIG?.chatApiUrl === "string"
@@ -50,9 +49,7 @@ const configuredChatApiUrl =
       ? window.CHAT_API_URL.trim()
       : "";
 
-const BACKEND_API_URL = isLocalHost
-  ? "http://localhost:3000/api/chat"
-  : configuredChatApiUrl || "/api/chat";
+const BACKEND_API_URL = configuredChatApiUrl || "/api/chat";
 const DEEPSEEK_MODEL = "deepseek-chat";
 
 const log = document.getElementById("chatLog");
