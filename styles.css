@@ -1,6 +1,7 @@
 :root {
   --bg: #050c14;
   --surface: #0a1520;
+  --surface-glass: rgba(8, 18, 28, 0.86);
   --border: #0f2234;
   --accent: #00c8ff;
   --accent2: #0056a8;
@@ -18,6 +19,7 @@
 :root[data-theme="green"] {
   --bg: #04110a;
   --surface: #071a10;
+  --surface-glass: rgba(5, 20, 12, 0.86);
   --border: #0d2a1a;
   --accent: #00ff9d;
   --accent2: #00805a;
@@ -29,6 +31,7 @@
 :root[data-theme="amber"] {
   --bg: #120b03;
   --surface: #1c1207;
+  --surface-glass: rgba(24, 15, 6, 0.86);
   --border: #2e1f0c;
   --accent: #ffb454;
   --accent2: #a86a00;
@@ -55,15 +58,33 @@ html {
   display: none !important;
 }
 
+/* the page is a desktop: fixed viewport, no page scroll — the terminal scrolls inside */
+html,
+body {
+  height: 100%;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.6;
-  min-height: 100vh;
-  overflow-x: hidden;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: background 0.3s;
+}
+
+/* animated wallpaper */
+#desktopBg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
 }
 
 /* CRT: scanlines + vignette */
@@ -99,11 +120,34 @@ a:hover {
 .terminal {
   position: relative;
   z-index: 1;
-  max-width: 860px;
-  margin: 32px auto 0;
+  display: flex;
+  flex-direction: column;
+  width: var(--win-w, min(920px, 94vw));
+  height: var(--win-h, min(88dvh, 100%));
+  transform: translate(var(--drag-x, 0px), var(--drag-y, 0px));
   border: 1px solid var(--border);
-  background: var(--surface);
-  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 200, 255, 0.04);
+  background: var(--surface-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 24px rgba(0, 200, 255, 0.05);
+}
+
+.terminal.maximized {
+  --drag-x: 0px;
+  --drag-y: 0px;
+  width: 100vw;
+  height: 100dvh;
+  border: none;
+}
+
+.terminal.minimized {
+  height: auto;
+}
+
+.terminal.minimized .term-body,
+.terminal.minimized .statusline,
+.terminal.minimized .term-resize {
+  display: none;
 }
 
 .term-titlebar {
@@ -115,9 +159,14 @@ a:hover {
   background: var(--bg);
   font-size: 11px;
   color: var(--text-dim);
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  flex-shrink: 0;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.term-titlebar.dragging {
+  cursor: grabbing;
 }
 
 .term-buttons {
@@ -125,29 +174,56 @@ a:hover {
   gap: 6px;
 }
 
-.term-buttons span {
-  width: 10px;
-  height: 10px;
+.tb {
+  width: 11px;
+  height: 11px;
+  padding: 0;
   border-radius: 50%;
   border: 1px solid var(--muted);
+  background: transparent;
+  cursor: pointer;
+  transition: filter 0.15s;
 }
 
-.term-buttons span:first-child {
-  background: rgba(255, 68, 85, 0.5);
+.tb:hover {
+  filter: brightness(1.6);
 }
 
-.term-buttons span:nth-child(2) {
-  background: rgba(255, 180, 84, 0.4);
+.tb-close {
+  background: rgba(255, 68, 85, 0.55);
 }
 
-.term-buttons span:nth-child(3) {
-  background: rgba(0, 255, 157, 0.4);
+.tb-min {
+  background: rgba(255, 180, 84, 0.45);
+}
+
+.tb-max {
+  background: rgba(0, 255, 157, 0.45);
 }
 
 .term-title {
   flex: 1;
   text-align: center;
   letter-spacing: 0.08em;
+}
+
+/* resize grip in the bottom-right corner */
+.term-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  z-index: 60;
+  touch-action: none;
+  background:
+    linear-gradient(135deg, transparent 50%, var(--muted) 50%, var(--muted) 56%, transparent 56%, transparent 68%, var(--muted) 68%, var(--muted) 74%, transparent 74%, transparent 86%, var(--muted) 86%, var(--muted) 92%, transparent 92%);
+  opacity: 0.7;
+}
+
+.terminal.maximized .term-resize {
+  display: none;
 }
 
 .term-conn {
@@ -178,8 +254,36 @@ a:hover {
   }
 }
 
+/* the scrollback: the window's own scrolling region */
 .term-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
   padding: 28px 26px 40px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted) transparent;
+}
+
+.term-body::-webkit-scrollbar {
+  width: 9px;
+}
+
+.term-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.term-body::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.term-body::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 /* ============ MOTD ============ */
@@ -529,19 +633,15 @@ html.fx .cmd-output.on {
   opacity: 0.6;
 }
 
-/* ============ STATUSLINE ============ */
+/* ============ STATUSLINE (bottom edge of the window) ============ */
 .statusline {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 9500;
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
   padding: 4px 12px;
-  background: var(--surface);
+  background: var(--bg);
   border-top: 1px solid var(--border);
   font-size: 10.5px;
   color: var(--text-dim);
@@ -561,11 +661,6 @@ html.fx .cmd-output.on {
 
 .sl-div {
   color: var(--border);
-}
-
-/* spacer so content never hides behind the statusline */
-.terminal {
-  margin-bottom: 56px;
 }
 
 /* ============ BOOT SCREEN ============ */
@@ -643,11 +738,11 @@ html.fx .cmd-output.on {
   }
 }
 
-/* ============ VIM OVERLAY ============ */
+/* ============ VIM OVERLAY (fills the terminal window, like a real TUI app) ============ */
 .vim-overlay {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: 10000;
+  z-index: 80;
   background: var(--bg);
   display: flex;
   flex-direction: column;
@@ -684,41 +779,39 @@ html.fx .cmd-output.on {
 }
 
 /* ============ CRT POWER OFF (exit) ============ */
-body.crt-off .terminal,
-body.crt-off .statusline {
+body.crt-off .terminal {
   animation: crtOff 0.5s ease-in forwards;
 }
 
 @keyframes crtOff {
   0% {
-    transform: scaleY(1);
+    transform: translate(var(--drag-x, 0px), var(--drag-y, 0px)) scaleY(1);
     filter: brightness(1);
   }
 
   60% {
-    transform: scaleY(0.006);
+    transform: translate(var(--drag-x, 0px), var(--drag-y, 0px)) scaleY(0.006);
     filter: brightness(6);
   }
 
   100% {
-    transform: scaleY(0.006) scaleX(0);
+    transform: translate(var(--drag-x, 0px), var(--drag-y, 0px)) scaleY(0.006) scaleX(0);
     filter: brightness(10);
   }
 }
 
-body.crt-on .terminal,
-body.crt-on .statusline {
+body.crt-on .terminal {
   animation: crtOn 0.4s ease-out;
 }
 
 @keyframes crtOn {
   0% {
-    transform: scaleY(0.006);
+    transform: translate(var(--drag-x, 0px), var(--drag-y, 0px)) scaleY(0.006);
     filter: brightness(6);
   }
 
   100% {
-    transform: scaleY(1);
+    transform: translate(var(--drag-x, 0px), var(--drag-y, 0px)) scaleY(1);
     filter: brightness(1);
   }
 }
@@ -783,9 +876,21 @@ body.noclip .chat-wrapper {
 }
 
 /* ============ RESPONSIVE ============ */
-@media (max-width: 600px) {
+@media (max-width: 700px) {
+
+  /* phones: the window fills the screen; no drag, no resize */
   .terminal {
-    margin-top: 12px;
+    width: 100vw;
+    height: 100dvh;
+    border: none;
+  }
+
+  .term-titlebar {
+    cursor: default;
+  }
+
+  .term-resize {
+    display: none;
   }
 
   .term-body {

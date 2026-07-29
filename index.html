@@ -15,6 +15,9 @@
 </head>
 
 <body>
+  <!-- animated desktop wallpaper -->
+  <canvas id="desktopBg" aria-hidden="true"></canvas>
+
   <!-- CRT scanlines + vignette -->
   <div class="crt" aria-hidden="true"></div>
 
@@ -29,21 +32,15 @@
     <pre id="panicLog"></pre>
   </div>
 
-  <!-- Fake vim overlay -->
-  <div class="vim-overlay" id="vimOverlay" aria-hidden="true" hidden>
-    <pre class="vim-buffer" id="vimBuffer"></pre>
-    <div class="vim-statusbar">
-      <span id="vimStatusLeft">"trapped.txt" [readonly]</span>
-      <span id="vimStatusRight">0,0-1 All</span>
-    </div>
-    <div class="vim-cmdline" id="vimCmdline"></div>
-  </div>
-
   <div class="terminal" id="terminal">
 
     <!-- WINDOW TITLEBAR -->
-    <div class="term-titlebar">
-      <div class="term-buttons" aria-hidden="true"><span></span><span></span><span></span></div>
+    <div class="term-titlebar" id="termTitlebar">
+      <div class="term-buttons">
+        <button class="tb tb-close" id="tbClose" aria-label="close terminal" title="close"></button>
+        <button class="tb tb-min" id="tbMin" aria-label="minimize terminal" title="minimize"></button>
+        <button class="tb tb-max" id="tbMax" aria-label="maximize terminal" title="maximize"></button>
+      </div>
       <div class="term-title">john@shimakaze: ~</div>
       <div class="term-conn"><span class="dot"></span>ONLINE</div>
     </div>
@@ -193,18 +190,32 @@
       </section>
 
     </div>
-  </div>
 
-  <!-- tmux-style statusline -->
-  <div class="statusline">
-    <span class="sl-left">[portfolio] 0:main* 1:twin-</span>
-    <span class="sl-right"><span id="slUptime">up —</span><span class="sl-div">│</span><span id="ts"></span></span>
+    <!-- tmux-style statusline (inside the window, like the real thing) -->
+    <div class="statusline">
+      <span class="sl-left">[portfolio] 0:main* 1:twin-</span>
+      <span class="sl-right"><span id="slUptime">up —</span><span class="sl-div">│</span><span id="ts"></span></span>
+    </div>
+
+    <!-- Fake vim runs inside the terminal window -->
+    <div class="vim-overlay" id="vimOverlay" aria-hidden="true" hidden>
+      <pre class="vim-buffer" id="vimBuffer"></pre>
+      <div class="vim-statusbar">
+        <span id="vimStatusLeft">"trapped.txt" [readonly]</span>
+        <span id="vimStatusRight">0,0-1 All</span>
+      </div>
+      <div class="vim-cmdline" id="vimCmdline"></div>
+    </div>
+
+    <!-- resize grip -->
+    <div class="term-resize" id="termResize" aria-hidden="true"></div>
   </div>
 
   <script src="site.config.js"></script>
   <script src="script.js"></script>
   <script src="effects.js"></script>
   <script src="terminal.js"></script>
+  <script src="desktop.js"></script>
 </body>
 
 </html>
