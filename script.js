@@ -1,18 +1,4 @@
-// Timestamp
-const ts = document.getElementById("ts");
-const pad = (n) => String(n).padStart(2, "0");
-
-function tick() {
-  const d = new Date();
-  ts.textContent = `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(
-    d.getHours()
-  )}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-
-tick();
-setInterval(tick, 1000);
-
-// Chat
+// Chat (clock + uptime live in effects.js)
 const SYSTEM_PROMPT = `You are my digital twin, used on my personal homepage to answer visitors’ questions about me.
 
 Your tasks:
@@ -61,15 +47,15 @@ function appendMsg(role, text) {
   const div = document.createElement("div");
   div.className = `msg ${role}`;
 
-  const icon = document.createElement("div");
-  icon.className = "msg-icon";
-  icon.textContent = role === "user" ? "YOU" : "J";
+  const prefix = document.createElement("span");
+  prefix.className = "msg-prefix";
+  prefix.textContent = role === "user" ? "you>" : "twin>";
 
   const body = document.createElement("div");
   body.className = "msg-body";
   body.textContent = text;
 
-  div.appendChild(icon);
+  div.appendChild(prefix);
   div.appendChild(body);
   log.appendChild(div);
   log.scrollTop = log.scrollHeight;
@@ -81,15 +67,15 @@ function appendTyping() {
   div.className = "msg bot";
   div.id = "typing-indicator";
 
-  const icon = document.createElement("div");
-  icon.className = "msg-icon";
-  icon.textContent = "J";
+  const prefix = document.createElement("span");
+  prefix.className = "msg-prefix";
+  prefix.textContent = "twin>";
 
   const body = document.createElement("div");
   body.className = "msg-body";
   body.innerHTML = '<span class="typing"><span></span><span></span><span></span></span>';
 
-  div.appendChild(icon);
+  div.appendChild(prefix);
   div.appendChild(body);
   log.appendChild(div);
   log.scrollTop = log.scrollHeight;

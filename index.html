@@ -4,7 +4,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>John — Systems & Engine Dev</title>
+  <title>john@shimakaze: ~ — Systems & Engine Dev</title>
+  <link rel="icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23050c14'/%3E%3Ctext x='4' y='22' font-family='monospace' font-size='16' fill='%2300c8ff'%3E%26gt;_%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link
     href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap"
@@ -13,150 +15,221 @@
 </head>
 
 <body>
-  <div class="noise-bg"></div>
+  <!-- CRT scanlines + vignette -->
+  <div class="crt" aria-hidden="true"></div>
 
-  <div class="container">
+  <!-- First-visit boot sequence (filled by effects.js) -->
+  <div class="boot-screen" id="bootScreen" aria-hidden="true" hidden>
+    <pre class="boot-log" id="bootLog"></pre>
+    <div class="boot-skip">press any key to skip</div>
+  </div>
 
-    <!-- TOP BAR -->
-    <div class="topbar">
-      <span class="logo">SYS://JOHN</span>
-      <span class="status"><span class="dot"></span>ONLINE</span>
+  <!-- Kernel panic overlay (sudo rm -rf /) -->
+  <div class="panic-screen" id="panicScreen" aria-hidden="true" hidden>
+    <pre id="panicLog"></pre>
+  </div>
+
+  <!-- Fake vim overlay -->
+  <div class="vim-overlay" id="vimOverlay" aria-hidden="true" hidden>
+    <pre class="vim-buffer" id="vimBuffer"></pre>
+    <div class="vim-statusbar">
+      <span id="vimStatusLeft">"trapped.txt" [readonly]</span>
+      <span id="vimStatusRight">0,0-1 All</span>
+    </div>
+    <div class="vim-cmdline" id="vimCmdline"></div>
+  </div>
+
+  <div class="terminal" id="terminal">
+
+    <!-- WINDOW TITLEBAR -->
+    <div class="term-titlebar">
+      <div class="term-buttons" aria-hidden="true"><span></span><span></span><span></span></div>
+      <div class="term-title">john@shimakaze: ~</div>
+      <div class="term-conn"><span class="dot"></span>ONLINE</div>
     </div>
 
-    <!-- HERO -->
-    <section class="hero">
-      <div class="avatar">
-        <div class="avatar-inner">J</div>
-      </div>
-      <div class="hero-text">
-        <div class="hero-name">John</div>
-        <div class="hero-intro">// building systems from first principles</div>
-        <div class="hero-tags">
-          <span class="tag">C/C++</span>
-          <span class="tag">game engine dev</span>
-          <span class="tag">systems programming</span>
-          <span class="tag">low-level</span>
-          <span class="tag">reverse engineering</span>
-        </div>
-      </div>
-    </section>
+    <div class="term-body" id="termBody">
 
-    <!-- INFO -->
-    <section class="section">
-      <div class="section-label">01 / info</div>
-      <div class="info-grid">
-        <div class="info-cell">
-          <div class="info-key">status</div>
-          <div class="info-val accent">student · active</div>
-        </div>
-        <div class="info-cell">
-          <div class="info-key">focus</div>
-          <div class="info-val">custom game engine</div>
-        </div>
-        <div class="info-cell">
-          <div class="info-key">primary language</div>
-          <div class="info-val">C / C++20</div>
-        </div>
-        <div class="info-cell">
-          <div class="info-key">interests</div>
-          <div class="info-val">engine arch · memory systems · rendering pipelines</div>
-        </div>
-        <div class="info-cell full">
-          <div class="info-key">trait</div>
-          <div class="info-val">Questions existing abstractions. Prefers rebuilding from first principles over using
-            off-the-shelf solutions.</div>
-        </div>
+      <!-- MOTD -->
+      <div class="motd">
+        <pre class="motd-banner" aria-label="JOHN">
+     _  ___  _   _ _   _
+    | |/ _ \| | | | \ | |
+ _  | | | | | |_| |  \| |
+| |_| | |_| |  _  | |\  |
+ \___/ \___/|_| |_|_| \_|</pre>
+        <div class="motd-sub scramble">systems &amp; engine dev — building from first principles</div>
+        <div class="motd-meta">Last login: Fri Nov  7 23:41:19 2025 from 127.0.0.1</div>
+        <div class="motd-tip">* tip: there is a <a href="#prompt" class="tip-link">live shell</a> at the bottom of this
+          page. type <span class="kbd">help</span>.</div>
       </div>
-    </section>
 
-    <!-- PORTFOLIO -->
-    <section class="section">
-      <div class="section-label">02 / portfolio</div>
-      <div class="info-grid">
-        <div class="info-cell full">
-          <div class="info-key">project // v1 engine</div>
-          <div class="info-val project-content">
-            <div class="project-desc">
-              A custom 3D game engine built in C++20 from scratch. Features a custom memory allocator, ECS framework,
-              and a basic OpenGL rendering pipeline.
+      <!-- 01 / WHOAMI -->
+      <section class="cmd-block" id="sec-whoami">
+        <div class="cmd-line"><span class="ps1"><span class="ps1-user">john@shimakaze</span><span
+              class="ps1-path">:~</span><span class="ps1-sym">$</span></span> <span class="cmd-text">whoami</span></div>
+        <div class="cmd-output">
+          <div class="hero-name scramble">John</div>
+          <div class="hero-intro scramble">// building systems from first principles</div>
+          <div class="hero-tags">
+            <span class="tag">C/C++</span>
+            <span class="tag">game engine dev</span>
+            <span class="tag">systems programming</span>
+            <span class="tag">low-level</span>
+            <span class="tag">reverse engineering</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 02 / NEOFETCH -->
+      <section class="cmd-block" id="sec-info">
+        <div class="cmd-line"><span class="ps1"><span class="ps1-user">john@shimakaze</span><span
+              class="ps1-path">:~</span><span class="ps1-sym">$</span></span> <span class="cmd-text">neofetch</span>
+        </div>
+        <div class="cmd-output">
+          <div class="neofetch">
+            <pre class="nf-art" aria-hidden="true">
+    +--------+
+   /        /|
+  +--------+ |
+  |        | |
+  |  &gt;/dev | +
+  |        |/
+  +--------+</pre>
+            <div class="nf-fields">
+              <div class="nf-line nf-head scramble">john@shimakaze</div>
+              <div class="nf-line nf-sep">----------------</div>
+              <div class="nf-line"><span class="nf-k">Status</span><span class="nf-v accent">student · active</span></div>
+              <div class="nf-line"><span class="nf-k">Focus</span><span class="nf-v">custom game engine</span></div>
+              <div class="nf-line"><span class="nf-k">Lang</span><span class="nf-v">C / C++20</span></div>
+              <div class="nf-line"><span class="nf-k">Interests</span><span class="nf-v">engine arch · memory systems ·
+                  rendering pipelines</span></div>
+              <div class="nf-line"><span class="nf-k">Shell</span><span class="nf-v">the one at the bottom of this
+                  page</span></div>
+              <div class="nf-line"><span class="nf-k">Uptime</span><span class="nf-v accent" id="nfUptime">—</span></div>
+              <div class="nf-line"><span class="nf-k">Trait</span><span class="nf-v">questions existing abstractions ·
+                  rebuilds from first principles instead of reaching for off-the-shelf</span></div>
             </div>
-            <img src="assets/engine.png" class="project-img" alt="V1 Engine screenshot">
           </div>
         </div>
-        <div class="info-cell full">
-          <div class="info-key">project // AC_CHEAT</div>
-          <div class="info-val project-content">
-            <div class="project-desc">
-              An educational cheat for AssaultCube. Features auto-aim, wallhack, god mode, infinite
-              ammo, and snaplines to demonstrate memory manipulation and reverse engineering concepts.
+      </section>
+
+      <!-- 03 / PROJECTS -->
+      <section class="cmd-block" id="sec-projects">
+        <div class="cmd-line"><span class="ps1"><span class="ps1-user">john@shimakaze</span><span
+              class="ps1-path">:~</span><span class="ps1-sym">$</span></span> <span class="cmd-text">ls
+            ~/projects</span></div>
+        <div class="cmd-output">
+          <div class="ls-row"><span class="ls-dir">v1-engine/</span><span class="ls-dir">ac_cheat/</span></div>
+        </div>
+      </section>
+
+      <section class="cmd-block" id="sec-engine">
+        <div class="cmd-line"><span class="ps1"><span class="ps1-user">john@shimakaze</span><span
+              class="ps1-path">:~</span><span class="ps1-sym">$</span></span> <span class="cmd-text">cat
+            ~/projects/v1-engine/README.md</span></div>
+        <div class="cmd-output">
+          <div class="proj-title scramble"># v1 engine</div>
+          <div class="proj-body">
+            <div class="proj-desc">A custom 3D game engine built in C++20 from scratch. Features a custom memory
+              allocator, ECS framework, and a basic OpenGL rendering pipeline.</div>
+            <img src="assets/engine.png" class="proj-img" alt="V1 Engine screenshot" loading="lazy">
+          </div>
+        </div>
+      </section>
+
+      <section class="cmd-block" id="sec-cheat">
+        <div class="cmd-line"><span class="ps1"><span class="ps1-user">john@shimakaze</span><span
+              class="ps1-path">:~</span><span class="ps1-sym">$</span></span> <span class="cmd-text">cat
+            ~/projects/ac_cheat/README.md</span></div>
+        <div class="cmd-output">
+          <div class="proj-title scramble"># AC_CHEAT</div>
+          <div class="proj-body">
+            <div class="proj-desc">An educational cheat for AssaultCube. Features auto-aim, wallhack, god mode, infinite
+              ammo, and snaplines to demonstrate memory manipulation and reverse engineering concepts.</div>
+            <img src="assets/cheat.png" class="proj-img" alt="AC Cheat screenshot" loading="lazy">
+          </div>
+        </div>
+      </section>
+
+      <!-- 04 / CONTACT -->
+      <section class="cmd-block" id="sec-contact">
+        <div class="cmd-line"><span class="ps1"><span class="ps1-user">john@shimakaze</span><span
+              class="ps1-path">:~</span><span class="ps1-sym">$</span></span> <span class="cmd-text">cat
+            ~/contact</span></div>
+        <div class="cmd-output">
+          <div class="contact-line"><span class="nf-k">email</span><a class="nf-v accent"
+              href="mailto:yangtianzhuo970425@gmail.com">yangtianzhuo970425@gmail.com</a></div>
+          <div class="contact-line"><span class="nf-k">github</span><a class="nf-v" href="https://github.com/shimakaze09"
+              target="_blank" rel="noopener">github.com/shimakaze09</a></div>
+        </div>
+      </section>
+
+      <!-- 05 / DIGITAL TWIN -->
+      <section class="cmd-block" id="sec-twin">
+        <div class="cmd-line"><span class="ps1"><span class="ps1-user">john@shimakaze</span><span
+              class="ps1-path">:~</span><span class="ps1-sym">$</span></span> <span class="cmd-text">./twin
+            --interactive</span></div>
+        <div class="cmd-output">
+          <div class="chat-wrapper">
+            <div class="chat-header">
+              <div class="chat-header-left">
+                <span class="dot"></span>
+                <span class="chat-title">TWIN_INSTANCE</span>
+                <span class="chat-pid">pid 1337</span>
+              </div>
+              <span class="chat-subtitle">ask me anything</span>
             </div>
-            <img src="assets/cheat.png" class="project-img" alt="AC Cheat screenshot">
+
+            <div class="chat-log" id="chatLog">
+              <!-- seeded message -->
+              <div class="msg bot">
+                <span class="msg-prefix">twin&gt;</span>
+                <div class="msg-body">Hey. I'm John's digital twin - ask me about my engine work, how I learn low-level systems, or why I'm not just using Unity.</div>
+              </div>
+            </div>
+
+            <!-- Quick chips -->
+            <div class="chips" id="chipsRow">
+              <button class="chip" onclick="sendChip(this)">why build your own engine?</button>
+              <button class="chip" onclick="sendChip(this)">how do you learn low-level programming?</button>
+              <button class="chip" onclick="sendChip(this)">what are you working on now?</button>
+            </div>
+
+            <div class="chat-input-row">
+              <span class="chat-ps" aria-hidden="true">&gt;</span>
+              <input class="chat-input" id="chatInput" placeholder="type your question..." autocomplete="off"
+                onkeydown="if(event.key==='Enter') sendMessage()" />
+              <button class="chat-send" id="sendBtn" onclick="sendMessage()">[send]</button>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- CONTACT -->
-    <section class="section">
-      <div class="section-label">03 / contact</div>
-      <div class="info-grid">
-        <div class="info-cell">
-          <div class="info-key">email</div>
-          <div class="info-val accent">yangtianzhuo970425@gmail.com</div>
+      <!-- 06 / LIVE SHELL -->
+      <section class="shell" id="prompt">
+        <div id="shellOutput" aria-live="polite"></div>
+        <div class="shell-input-line" id="shellInputLine">
+          <span class="ps1"><span class="ps1-user">john@shimakaze</span><span class="ps1-path">:~</span><span
+              class="ps1-sym">$</span></span>
+          <input class="shell-input" id="shellInput" autocomplete="off" autocapitalize="off" spellcheck="false"
+            aria-label="terminal command input" placeholder="type 'help'" />
         </div>
-        <div class="info-cell">
-          <div class="info-key">github</div>
-          <div class="info-val">github.com/shimakaze09</div>
-        </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- DIGITAL TWIN CHAT -->
-    <section class="section">
-      <div class="section-label">04 / digital twin</div>
-      <div class="chat-wrapper">
-        <div class="chat-header">
-          <div class="chat-header-left">
-            <span class="dot"></span>
-            <span class="chat-title">TWIN_INSTANCE</span>
-          </div>
-          <span class="chat-subtitle">ask me anything</span>
-        </div>
+    </div>
+  </div>
 
-        <div class="chat-log" id="chatLog">
-          <!-- seeded message -->
-          <div class="msg bot">
-            <div class="msg-icon">J</div>
-            <div class="msg-body">Hey. I'm John's digital twin - ask me about my engine work, how I learn low-level
-              systems, or why I'm not just using Unity.</div>
-          </div>
-        </div>
-
-        <!-- Quick chips -->
-        <div class="chips" id="chipsRow">
-          <button class="chip" onclick="sendChip(this)">why build your own engine?</button>
-          <button class="chip" onclick="sendChip(this)">how do you learn low-level programming?</button>
-          <button class="chip" onclick="sendChip(this)">what are you working on now?</button>
-        </div>
-
-        <div class="chat-input-row">
-          <input class="chat-input" id="chatInput" placeholder="> type your question..." autocomplete="off"
-            onkeydown="if(event.key==='Enter') sendMessage()" />
-          <button class="chat-send" id="sendBtn" onclick="sendMessage()">SEND -></button>
-        </div>
-      </div>
-    </section>
-
-    <!-- FOOTER -->
-    <footer>
-      <span>john · systems & engine dev</span>
-      <span id="ts"></span>
-    </footer>
-
+  <!-- tmux-style statusline -->
+  <div class="statusline">
+    <span class="sl-left">[portfolio] 0:main* 1:twin-</span>
+    <span class="sl-right"><span id="slUptime">up —</span><span class="sl-div">│</span><span id="ts"></span></span>
   </div>
 
   <script src="site.config.js"></script>
   <script src="script.js"></script>
+  <script src="effects.js"></script>
+  <script src="terminal.js"></script>
 </body>
 
 </html>
