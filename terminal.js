@@ -135,7 +135,7 @@ const HELP_TEXT =
   "  date          current time\n" +
   "  echo &lt;text&gt;   say it back\n" +
   "  history       your command history\n" +
-  "  clear         wipe this shell\n" +
+  "  clear         clear the terminal (all of it)\n" +
   "  exit          hang up\n" +
   '<span class="dim">...and a few undocumented ones. explore.</span>';
 
@@ -332,7 +332,7 @@ function runCommand(raw) {
       break;
 
     case "clear":
-      shellOutput.innerHTML = "";
+      clearTerminal();
       break;
 
     case "exit":
@@ -430,6 +430,17 @@ function runCommand(raw) {
         entry,
         `bash: ${escapeHtml(cmd)}: command not found\n<span class="dim">type 'help' for the honest list.</span>`
       );
+  }
+}
+
+// ---------- clear: whoever types it means it — wipe the whole screen ----------
+function clearTerminal() {
+  document.querySelectorAll(".motd, .cmd-block").forEach((el) => el.remove());
+  shellOutput.innerHTML = "";
+  shellSection.classList.add("bare");
+  const termBody = document.getElementById("termBody");
+  if (termBody) {
+    termBody.scrollTop = 0;
   }
 }
 
@@ -893,7 +904,7 @@ shellInput.addEventListener("keydown", (e) => {
     }
   } else if (e.key === "l" && e.ctrlKey) {
     e.preventDefault();
-    shellOutput.innerHTML = "";
+    clearTerminal();
   } else if (e.key === "c" && e.ctrlKey && !twinMode && !window.getSelection()?.toString()) {
     e.preventDefault();
     echoCommand(shellInput.value + "^C");

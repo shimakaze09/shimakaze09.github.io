@@ -577,6 +577,12 @@ html.fx .cmd-output.on {
   padding-top: 20px;
 }
 
+/* after `clear` the shell is all that's left — no divider above a blank screen */
+.shell.bare {
+  border-top: none;
+  padding-top: 0;
+}
+
 .shell-entry {
   margin-bottom: 10px;
 }
