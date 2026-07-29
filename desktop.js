@@ -82,12 +82,24 @@ function glitchBurst() {
   }
 }
 
-let lastT = 0;
+let lastDraw = 0;
+const bootScreenEl = document.getElementById("bootScreen");
 
 function bgFrame(tms) {
+  requestAnimationFrame(bgFrame);
+
+  // cap at ~30fps, and go idle entirely while the boot screen covers the desktop
+  // (keeps the main thread free so the boot animation timers run on schedule)
+  if (tms - lastDraw < 33) {
+    return;
+  }
+  if (bootScreenEl && !bootScreenEl.hidden) {
+    lastDraw = tms;
+    return;
+  }
   const t = tms / 1000;
-  const dt = Math.min(0.1, t - lastT || 0.016);
-  lastT = t;
+  const dt = Math.min(0.1, (tms - lastDraw) / 1000);
+  lastDraw = tms;
 
   // fade previous frame toward bg — this is what makes the trails
   bgCtx.fillStyle = withAlpha(themeColors.bg, 0.16);
@@ -128,8 +140,6 @@ function bgFrame(tms) {
     glitchFrames = 2 + Math.floor(Math.random() * 3);
     nextGlitchAt = t + 3 + Math.random() * 5;
   }
-
-  requestAnimationFrame(bgFrame);
 }
 
 readThemeColors();

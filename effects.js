@@ -190,20 +190,40 @@ function initReveal() {
 }
 
 // ---------- boot sequence ----------
-const BOOT_LINES = [
-  ["dim", "SHIMAKAZE BIOS v2.7 — cold boot"],
-  ["ok", "memory check: 640K <span class='dim'>(should be enough for anyone)</span>"],
-  ["ok", "cpu: 1 core, hand-scheduled"],
-  ["ok", "mounting /home/john"],
-  ["ok", "loading ecs modules"],
-  ["ok", "linking custom allocator <span class='dim'>(malloc? never met her)</span>"],
-  ["ok", "starting twin_instance daemon"],
-  ["ok", "syncing uptime counter"],
-  ["dim", ""],
-  ["dim", "login: john"],
-  ["dim", "password: ********"],
-  ["dim", ""],
-  ["plain", "Welcome."],
+// step types: line (one entry), gap, countup (animated number), progress
+// (filling bar), burst (rapid dmesg spray), type (typed character by character)
+const BOOT_SCRIPT = [
+  { t: "line", html: '<span class="dim">SHIMAKAZE BIOS v2.7 — POST</span>', pause: 380 },
+  { t: "countup", label: "Memory test: ", to: 640, unit: "K",
+    tail: ' OK <span class="dim">(should be enough for anyone)</span>', dur: 850 },
+  { t: "line", html: '<span class="ok">[  OK  ]</span> cpu0: 1 core @ hand-scheduled', pause: 120 },
+  { t: "line", html: '<span class="ok">[  OK  ]</span> keyboard: detected <span class="dim">(loud)</span>', pause: 150 },
+  { t: "line", html: '<span class="ok">[  OK  ]</span> display: CRT emulation, scanlines nominal', pause: 300 },
+  { t: "gap" },
+  { t: "line", html: '<span class="dim">GRUB 2.06: loading kernel 6.1.0-shimakaze ...</span>', pause: 150 },
+  { t: "progress", width: 26, dur: 750 },
+  { t: "gap" },
+  { t: "burst", lines: [
+    "[    0.000000] Linux version 6.1.0-shimakaze (john@shimakaze) (gcc 13.2, ld 2.41)",
+    "[    0.000042] Command line: BOOT_IMAGE=/boot/portfolio root=/dev/john rw vibes=on",
+    "[    0.004096] mem: custom allocator online — malloc politely declined",
+    "[    0.010101] ecs: 3 component pools registered, 0 leaked (this time)",
+    "[    0.013370] gpu0: OpenGL pipeline attached (v1 engine)",
+    "[    0.024680] vfs: mounted /home/john (rw, overrides in localStorage)",
+    "[    0.031337] ac_cheat: module loaded. anti-cheat looked the other way",
+    "[    0.048151] rng: entropy pool seeded with keyboard rage",
+    "[    0.061803] watchdog: nothing to watch. everything is fine",
+  ], pause: 250 },
+  { t: "gap" },
+  { t: "line", html: '<span class="ok">[  OK  ]</span> Mounted /home/john', pause: 110 },
+  { t: "line", html: '<span class="ok">[  OK  ]</span> Started twin_instance daemon (pid 1337)', pause: 110 },
+  { t: "line", html: '<span class="ok">[  OK  ]</span> Started uptime counter', pause: 110 },
+  { t: "line", html: '<span class="ok">[  OK  ]</span> Reached target portfolio.target', pause: 420 },
+  { t: "gap" },
+  { t: "type", text: "login: john", cls: "dim", pause: 260 },
+  { t: "type", text: "password: ********", cls: "dim", pause: 380 },
+  { t: "gap" },
+  { t: "line", html: "Welcome.", pause: 420 },
 ];
 
 function runBoot(done) {
@@ -216,16 +236,13 @@ function runBoot(done) {
 
   screen.hidden = false;
   document.body.style.overflow = "hidden";
-  let idx = 0;
   let finished = false;
-  let timer = null;
 
   function finish() {
     if (finished) {
       return;
     }
     finished = true;
-    clearTimeout(timer);
     window.removeEventListener("keydown", finish);
     screen.removeEventListener("click", finish);
     screen.hidden = true;
@@ -233,28 +250,94 @@ function runBoot(done) {
     done();
   }
 
-  function next() {
-    if (idx >= BOOT_LINES.length) {
-      timer = setTimeout(finish, 350);
-      return;
-    }
-    const [kind, html] = BOOT_LINES[idx];
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  function addLine(html) {
     const line = document.createElement("div");
-    if (kind === "ok") {
-      line.innerHTML = `<span class="ok">[  OK  ]</span> ${html}`;
-    } else if (kind === "dim") {
-      line.innerHTML = `<span class="dim">${html}</span>`;
-    } else {
-      line.innerHTML = html;
-    }
+    line.innerHTML = html;
     logEl.appendChild(line);
-    idx += 1;
-    timer = setTimeout(next, 40 + Math.random() * 110);
+    screen.scrollTop = screen.scrollHeight;
+    return line;
+  }
+
+  async function runStep(step) {
+    switch (step.t) {
+      case "line":
+        addLine(step.html);
+        await sleep(step.pause || 90);
+        break;
+
+      case "gap":
+        addLine("&nbsp;");
+        await sleep(60);
+        break;
+
+      case "countup": {
+        const line = addLine("");
+        const ticks = 10;
+        for (let i = 0; i <= ticks && !finished; i++) {
+          const val = Math.round((step.to * i) / ticks);
+          line.innerHTML = `${step.label}${val}${step.unit}${i === ticks ? step.tail : ""}`;
+          await sleep(step.dur / ticks);
+        }
+        break;
+      }
+
+      case "progress": {
+        const line = addLine("");
+        for (let i = 0; i <= step.width && !finished; i++) {
+          const bar = "#".repeat(i) + "-".repeat(step.width - i);
+          line.innerHTML = `<span class="dim">[</span><span class="ok">${bar.slice(0, i)}</span><span class="dim">${bar.slice(i)}]</span>`;
+          await sleep(step.dur / step.width);
+        }
+        break;
+      }
+
+      case "burst":
+        for (const text of step.lines) {
+          if (finished) {
+            break;
+          }
+          addLine(`<span class="dim">${text}</span>`);
+          await sleep(22 + Math.random() * 45);
+        }
+        await sleep(step.pause || 120);
+        break;
+
+      case "type": {
+        const line = addLine("");
+        let out = "";
+        for (const ch of step.text) {
+          if (finished) {
+            break;
+          }
+          out += ch;
+          line.innerHTML = `<span class="${step.cls || ""}">${out}<span class="boot-caret">█</span></span>`;
+          await sleep(38 + Math.random() * 45);
+        }
+        line.innerHTML = `<span class="${step.cls || ""}">${step.text}</span>`;
+        await sleep(step.pause || 150);
+        break;
+      }
+    }
+  }
+
+  async function play() {
+    for (const step of BOOT_SCRIPT) {
+      if (finished) {
+        return;
+      }
+      await runStep(step);
+    }
+    if (!finished) {
+      await sleep(400);
+      finish();
+    }
   }
 
   window.addEventListener("keydown", finish);
   screen.addEventListener("click", finish);
-  next();
+  play();
 }
 
 function initBoot() {

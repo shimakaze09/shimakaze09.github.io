@@ -207,6 +207,17 @@
       <div class="vim-cmdline" id="vimCmdline"></div>
     </div>
 
+    <!-- working editor: nano <file> — saves to the browser's localStorage -->
+    <div class="ed-overlay" id="edOverlay" hidden>
+      <div class="ed-titlebar">
+        <span id="edTitle">edit</span>
+        <span id="edStatus"></span>
+      </div>
+      <textarea class="ed-text" id="edText" spellcheck="false" autocapitalize="off"
+        aria-label="file editor"></textarea>
+      <div class="ed-footer"><span class="ed-key">^S</span> save&nbsp;&nbsp;<span class="ed-key">^X</span> exit</div>
+    </div>
+
     <!-- resize grip -->
     <div class="term-resize" id="termResize" aria-hidden="true"></div>
   </div>

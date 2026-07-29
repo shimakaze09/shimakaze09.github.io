@@ -58,6 +58,23 @@ const VFS = {
   },
 };
 
+// user-created files and edits live in the visitor's localStorage
+let userFS = {};
+try {
+  userFS = JSON.parse(localStorage.getItem("vfs") || "{}") || {};
+} catch (e) {
+  userFS = {};
+}
+
+function saveUserFS() {
+  try {
+    localStorage.setItem("vfs", JSON.stringify(userFS));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 function normalizePath(p) {
   return (p || "")
     .replace(/^~\//, "")
@@ -68,20 +85,40 @@ function normalizePath(p) {
     .replace(/^\/$/, "/");
 }
 
+// merged lookup: user files shadow built-ins
+function vfsNode(path) {
+  if (Object.prototype.hasOwnProperty.call(userFS, path)) {
+    return { type: "file", content: userFS[path], user: true };
+  }
+  return VFS[path] || null;
+}
+
+function vfsIsDir(path) {
+  if (VFS[path]?.type === "dir") {
+    return true;
+  }
+  const prefix = path + "/";
+  return Object.keys(userFS).some((k) => k.startsWith(prefix));
+}
+
 function vfsChildren(dir) {
   const prefix = dir ? dir + "/" : "";
-  const names = [];
-  Object.keys(VFS).forEach((key) => {
+  const dirs = new Set();
+  const files = new Set();
+  Object.keys(VFS).concat(Object.keys(userFS)).forEach((key) => {
     if (!key.startsWith(prefix) || key === dir) {
       return;
     }
     const rest = key.slice(prefix.length);
     if (rest.includes("/")) {
-      return;
+      dirs.add(rest.slice(0, rest.indexOf("/")) + "/");
+    } else if (VFS[key]?.type === "dir") {
+      dirs.add(rest + "/");
+    } else {
+      files.add(rest);
     }
-    names.push(VFS[key].type === "dir" ? rest + "/" : rest);
   });
-  return names;
+  return [...dirs, ...files];
 }
 
 // ---------- output helpers ----------
@@ -128,6 +165,7 @@ const HELP_TEXT =
   "  neofetch      system info\n" +
   "  ls [-a] [dir] list files\n" +
   "  cat &lt;file&gt;    read a file\n" +
+  "  nano &lt;file&gt;   edit or create a file (persists in your browser)\n" +
   "  contact       how to reach me\n" +
   "  twin          chat with my digital twin (live AI)\n" +
   "  theme &lt;name&gt;  blue · green · amber\n" +
@@ -142,7 +180,7 @@ const HELP_TEXT =
 const COMMAND_NAMES = [
   "help", "whoami", "neofetch", "ls", "cat", "cd", "pwd", "contact", "twin",
   "theme", "uptime", "date", "echo", "history", "clear", "exit", "logout", "chat",
-  "sudo", "rm", "vim", "vi", "nano", "emacs", "man", "ping", "top", "htop",
+  "sudo", "rm", "touch", "edit", "vim", "vi", "nano", "emacs", "man", "ping", "top", "htop",
   "ps", "sl", "coffee", "brew", "make", "hack", "noclip", "github", "email",
   "curl", "wget",
 ];
@@ -150,8 +188,8 @@ const COMMAND_NAMES = [
 function cmdLs(args) {
   const showHidden = args.some((a) => a.startsWith("-") && a.includes("a"));
   const target = normalizePath(args.find((a) => !a.startsWith("-")) || "");
-  if (target && (!VFS[target] || VFS[target].type !== "dir")) {
-    if (VFS[target]) {
+  if (target && !vfsIsDir(target)) {
+    if (vfsNode(target)) {
       return escapeHtml(target);
     }
     return `<span class="err">ls: cannot access '${escapeHtml(target)}': no such file or directory</span>`;
@@ -174,11 +212,11 @@ function cmdCat(args) {
     return { special: "urandom" };
   }
   const p = normalizePath(raw);
-  const node = VFS[p];
+  const node = vfsNode(p);
   if (!node) {
     return `<span class="err">cat: ${escapeHtml(raw)}: no such file or directory</span>`;
   }
-  if (node.type === "dir") {
+  if (node.type === "dir" || vfsIsDir(p)) {
     return `<span class="err">cat: ${escapeHtml(raw)}: is a directory</span>`;
   }
   return escapeHtml(node.content).replace(
@@ -320,6 +358,21 @@ function runCommand(raw) {
         .replace(/\$HOME/g, "/home/john")
         .replace(/\$USER/g, "john")
         .replace(/\$SHELL/g, "/bin/portfolio");
+      // redirection: echo something > file (or >> to append)
+      const redir = text.match(/^(.*?)\s*(>>?)\s*(\S+)\s*$/);
+      if (redir && redir[3]) {
+        const p = normalizePath(redir[3]);
+        if (!p || vfsIsDir(p)) {
+          printTo(entry, `<span class="err">bash: ${escapeHtml(redir[3])}: cannot write</span>`);
+          break;
+        }
+        const prev = redir[2] === ">>" ? (vfsNode(p)?.content ?? "") : "";
+        userFS[p] = prev ? prev + "\n" + redir[1] : redir[1];
+        if (!saveUserFS()) {
+          printTo(entry, '<span class="err">disk full (localStorage quota)</span>');
+        }
+        break;
+      }
       printTo(entry, escapeHtml(text) || "");
       break;
     }
@@ -355,20 +408,37 @@ function runCommand(raw) {
       break;
 
     case "rm":
-      if (/^-rf\s+\//.test(args.join(" "))) {
-        printTo(entry, '<span class="err">rm: permission denied.</span> <span class="dim">(you know what to do.)</span>');
-      } else {
-        printTo(entry, `rm: cannot remove '${escapeHtml(args.join(" ") || "?")}': it's my portfolio, not yours`);
+      cmdRm(entry, args);
+      break;
+
+    case "touch": {
+      const p = normalizePath(args[0] || "");
+      if (!p) {
+        printTo(entry, '<span class="dim">usage: touch &lt;file&gt;</span>');
+      } else if (!vfsNode(p) && !vfsIsDir(p)) {
+        userFS[p] = "";
+        saveUserFS();
       }
       break;
+    }
 
     case "vim":
     case "vi":
-      openVim(entry);
+      if (args.length) {
+        printTo(entry, '<span class="dim">real vim would have trapped you. opening the merciful editor instead.</span>');
+        openEditor(entry, args[0]);
+      } else {
+        openVim(entry);
+      }
       break;
 
     case "nano":
-      printTo(entry, "nano? on this page? bold. try vim — if you dare.");
+    case "edit":
+      if (args.length) {
+        openEditor(entry, args[0]);
+      } else {
+        printTo(entry, '<span class="dim">usage: nano &lt;file&gt; — edits save to your browser\'s localStorage</span>');
+      }
       break;
 
     case "emacs":
@@ -432,6 +502,121 @@ function runCommand(raw) {
       );
   }
 }
+
+// ---------- rm: user files are really deleted; system files resist ----------
+function cmdRm(entry, args) {
+  const joined = args.join(" ");
+  if (/^-rf\s+\//.test(joined)) {
+    printTo(entry, '<span class="err">rm: permission denied.</span> <span class="dim">(you know what to do.)</span>');
+    return;
+  }
+  const raw = args.find((a) => !a.startsWith("-"));
+  if (!raw) {
+    printTo(entry, '<span class="dim">usage: rm &lt;file&gt;</span>');
+    return;
+  }
+  const p = normalizePath(raw);
+  if (Object.prototype.hasOwnProperty.call(userFS, p)) {
+    delete userFS[p];
+    saveUserFS();
+    if (VFS[p]) {
+      printTo(entry, `<span class="dim">override removed — system file '${escapeHtml(p)}' restored</span>`);
+    }
+    return;
+  }
+  if (vfsIsDir(p)) {
+    printTo(entry, `<span class="err">rm: cannot remove '${escapeHtml(raw)}': is a directory</span>`);
+    return;
+  }
+  if (VFS[p]) {
+    printTo(entry, `<span class="err">rm: cannot remove '${escapeHtml(raw)}': read-only file system</span> <span class="dim">(edit it instead — your copy shadows mine)</span>`);
+    return;
+  }
+  printTo(entry, `<span class="err">rm: cannot remove '${escapeHtml(raw)}': no such file or directory</span>`);
+}
+
+// ---------- working editor: nano <file>, saves to localStorage ----------
+const edOverlay = document.getElementById("edOverlay");
+const edTitle = document.getElementById("edTitle");
+const edStatus = document.getElementById("edStatus");
+const edText = document.getElementById("edText");
+let editorActive = false;
+let edPath = "";
+let edEntry = null;
+let edSavedContent = null;
+
+function openEditor(entry, rawPath) {
+  const p = normalizePath(rawPath);
+  if (!p || p === "/") {
+    printTo(entry, '<span class="err">nano: invalid filename</span>');
+    return;
+  }
+  if (vfsIsDir(p)) {
+    printTo(entry, `<span class="err">nano: ${escapeHtml(p)}: is a directory</span>`);
+    return;
+  }
+  const node = vfsNode(p);
+  editorActive = true;
+  edPath = p;
+  edEntry = entry;
+  edSavedContent = node ? node.content : null;
+  edTitle.textContent = `edit: ~/${p}` + (node ? "" : " (new file)");
+  edStatus.textContent = "";
+  edText.value = node ? node.content : "";
+  edOverlay.hidden = false;
+  shellInput.blur();
+  edText.focus();
+}
+
+function edSave() {
+  if (edText.value.length > 64 * 1024) {
+    edStatus.textContent = "[file too large — 64K max]";
+    return;
+  }
+  userFS[edPath] = edText.value;
+  if (!saveUserFS()) {
+    edStatus.textContent = "[write failed — localStorage full or blocked]";
+    return;
+  }
+  edSavedContent = edText.value;
+  edStatus.textContent = `[wrote ${edText.value.length} bytes]`;
+  edTitle.textContent = `edit: ~/${edPath}`;
+}
+
+function edClose() {
+  const dirty = edSavedContent !== edText.value;
+  editorActive = false;
+  edOverlay.hidden = true;
+  if (edEntry) {
+    const saved = Object.prototype.hasOwnProperty.call(userFS, edPath) && userFS[edPath] === edText.value;
+    if (saved) {
+      printTo(
+        edEntry,
+        `<span class="dim">wrote ~/${escapeHtml(edPath)} (${userFS[edPath].length} bytes — persisted in your browser's localStorage)</span>`
+      );
+    } else if (dirty) {
+      printTo(edEntry, `<span class="dim">closed ~/${escapeHtml(edPath)} without saving</span>`);
+    }
+  }
+  shellInput.focus({ preventScroll: true });
+  keepPromptVisible();
+}
+
+edText.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "o")) {
+    e.preventDefault();
+    edSave();
+  } else if (((e.ctrlKey || e.metaKey) && (e.key === "x" || e.key === "q")) || e.key === "Escape") {
+    e.preventDefault();
+    edClose();
+  }
+});
+
+edText.addEventListener("input", () => {
+  if (edSavedContent !== edText.value) {
+    edStatus.textContent = "[modified]";
+  }
+});
 
 // ---------- clear: whoever types it means it — wipe the whole screen ----------
 function clearTerminal() {
@@ -857,7 +1042,8 @@ function tabComplete() {
   if (parts.length === 1) {
     pool = COMMAND_NAMES;
   } else {
-    pool = Object.keys(VFS).map((k) => (VFS[k].type === "dir" ? k + "/" : k));
+    const keys = new Set(Object.keys(VFS).concat(Object.keys(userFS)));
+    pool = [...keys].map((k) => (VFS[k]?.type === "dir" || vfsIsDir(k) ? k + "/" : k));
   }
 
   const matches = pool.filter((c) => c.startsWith(normalizePath(last) || last));
@@ -935,6 +1121,9 @@ document.addEventListener("keydown", (e) => {
     vimKeydown(e);
     return;
   }
+  if (editorActive) {
+    return;
+  }
 
   // Ctrl+C / Ctrl+D leave twin mode from anywhere on the page
   if ((e.key === "c" || e.key === "d") && e.ctrlKey && twinMode && !window.getSelection()?.toString()) {
@@ -949,7 +1138,7 @@ document.addEventListener("keydown", (e) => {
   }
 
   // konami code (ignore while typing — arrows mean history there; use `noclip` instead)
-  if (e.target && e.target.tagName === "INPUT") {
+  if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) {
     return;
   }
   const expect = KONAMI[konamiPos];
