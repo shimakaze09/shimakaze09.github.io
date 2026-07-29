@@ -133,7 +133,7 @@
           <div class="proj-body">
             <div class="proj-desc">A custom 3D game engine built in C++20 from scratch. Features a custom memory
               allocator, ECS framework, and a basic OpenGL rendering pipeline.</div>
-            <img src="assets/engine.png" class="proj-img" alt="V1 Engine screenshot" loading="lazy">
+            <img src="assets/engine.webp" class="proj-img" alt="V1 Engine screenshot" loading="lazy">
           </div>
         </div>
       </section>
@@ -147,7 +147,7 @@
           <div class="proj-body">
             <div class="proj-desc">An educational cheat for AssaultCube. Features auto-aim, wallhack, god mode, infinite
               ammo, and snaplines to demonstrate memory manipulation and reverse engineering concepts.</div>
-            <img src="assets/cheat.png" class="proj-img" alt="AC Cheat screenshot" loading="lazy">
+            <img src="assets/cheat.webp" class="proj-img" alt="AC Cheat screenshot" loading="lazy">
           </div>
         </div>
       </section>
@@ -169,39 +169,14 @@
       <section class="cmd-block" id="sec-twin">
         <div class="cmd-line"><span class="ps1"><span class="ps1-user">john@shimakaze</span><span
               class="ps1-path">:~</span><span class="ps1-sym">$</span></span> <span class="cmd-text">./twin
-            --interactive</span></div>
+            &amp;</span></div>
         <div class="cmd-output">
-          <div class="chat-wrapper">
-            <div class="chat-header">
-              <div class="chat-header-left">
-                <span class="dot"></span>
-                <span class="chat-title">TWIN_INSTANCE</span>
-                <span class="chat-pid">pid 1337</span>
-              </div>
-              <span class="chat-subtitle">ask me anything</span>
-            </div>
-
-            <div class="chat-log" id="chatLog">
-              <!-- seeded message -->
-              <div class="msg bot">
-                <span class="msg-prefix">twin&gt;</span>
-                <div class="msg-body">Hey. I'm John's digital twin - ask me about my engine work, how I learn low-level systems, or why I'm not just using Unity.</div>
-              </div>
-            </div>
-
-            <!-- Quick chips -->
-            <div class="chips" id="chipsRow">
-              <button class="chip" onclick="sendChip(this)">why build your own engine?</button>
-              <button class="chip" onclick="sendChip(this)">how do you learn low-level programming?</button>
-              <button class="chip" onclick="sendChip(this)">what are you working on now?</button>
-            </div>
-
-            <div class="chat-input-row">
-              <span class="chat-ps" aria-hidden="true">&gt;</span>
-              <input class="chat-input" id="chatInput" placeholder="type your question..." autocomplete="off"
-                onkeydown="if(event.key==='Enter') sendMessage()" />
-              <button class="chat-send" id="sendBtn" onclick="sendMessage()">[send]</button>
-            </div>
+          <div class="twin-note">[1] 1337 — twin_instance daemon started</div>
+          <div class="twin-line"><span class="twin-prefix">twin&gt;</span>
+            <div class="twin-body">Hey. I'm John's digital twin - ask me about my engine work, how I learn low-level systems, or why I'm not just using Unity.</div>
+          </div>
+          <div class="twin-line"><span class="twin-prefix">twin&gt;</span>
+            <div class="twin-body">I'm listening on the shell below — run <a href="#prompt" id="twinLaunch" class="kbd">twin</a> to talk to me.</div>
           </div>
         </div>
       </section>
@@ -210,8 +185,8 @@
       <section class="shell" id="prompt">
         <div id="shellOutput" aria-live="polite"></div>
         <div class="shell-input-line" id="shellInputLine">
-          <span class="ps1"><span class="ps1-user">john@shimakaze</span><span class="ps1-path">:~</span><span
-              class="ps1-sym">$</span></span>
+          <span class="ps1" id="shellPs1"><span class="ps1-user">john@shimakaze</span><span
+              class="ps1-path">:~</span><span class="ps1-sym">$</span></span>
           <input class="shell-input" id="shellInput" autocomplete="off" autocapitalize="off" spellcheck="false"
             aria-label="terminal command input" placeholder="type 'help'" />
         </div>

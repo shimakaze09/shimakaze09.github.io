@@ -3,11 +3,14 @@
 const shellOutput = document.getElementById("shellOutput");
 const shellInput = document.getElementById("shellInput");
 const shellSection = document.getElementById("prompt");
+const shellPs1 = document.getElementById("shellPs1");
+const BASH_PS1_INNER = shellPs1.innerHTML;
 
 const shellHistory = [];
 let historyIndex = -1;
 let shellBusy = false;
 let noclipOn = false;
+let twinMode = false;
 
 // ---------- virtual filesystem ----------
 const VFS = {
@@ -126,7 +129,7 @@ const HELP_TEXT =
   "  ls [-a] [dir] list files\n" +
   "  cat &lt;file&gt;    read a file\n" +
   "  contact       how to reach me\n" +
-  "  twin          talk to my digital twin\n" +
+  "  twin          chat with my digital twin (live AI)\n" +
   "  theme &lt;name&gt;  blue · green · amber\n" +
   "  uptime        how long this site has been up\n" +
   "  date          current time\n" +
@@ -138,7 +141,7 @@ const HELP_TEXT =
 
 const COMMAND_NAMES = [
   "help", "whoami", "neofetch", "ls", "cat", "cd", "pwd", "contact", "twin",
-  "theme", "uptime", "date", "echo", "history", "clear", "exit", "logout",
+  "theme", "uptime", "date", "echo", "history", "clear", "exit", "logout", "chat",
   "sudo", "rm", "vim", "vi", "nano", "emacs", "man", "ping", "top", "htop",
   "ps", "sl", "coffee", "brew", "make", "hack", "noclip", "github", "email",
   "curl", "wget",
@@ -277,18 +280,11 @@ function runCommand(raw) {
       );
       break;
 
-    case "twin": {
-      printTo(entry, 'the twin daemon is already running above <span class="hl">↑</span> — connecting you...');
-      const twinSec = document.getElementById("sec-twin");
-      if (twinSec) {
-        twinSec.scrollIntoView({ behavior: "smooth", block: "center" });
-        const chatInput = document.getElementById("chatInput");
-        if (chatInput) {
-          setTimeout(() => chatInput.focus(), 600);
-        }
-      }
+    case "twin":
+    case "./twin":
+    case "chat":
+      startTwin(entry);
       break;
-    }
 
     case "theme": {
       const name = (args[0] || "").toLowerCase();
@@ -435,6 +431,119 @@ function runCommand(raw) {
         `bash: ${escapeHtml(cmd)}: command not found\n<span class="dim">type 'help' for the honest list.</span>`
       );
   }
+}
+
+// ---------- twin REPL mode ----------
+const TWIN_SUGGESTIONS = [
+  "why build your own engine?",
+  "how do you learn low-level programming?",
+  "what are you working on now?",
+];
+
+function twinLine(isYou) {
+  const line = document.createElement("div");
+  line.className = "twin-line";
+  const prefix = document.createElement("span");
+  prefix.className = "twin-prefix" + (isYou ? " you" : "");
+  prefix.textContent = isYou ? "you>" : "twin>";
+  const body = document.createElement("div");
+  body.className = "twin-body";
+  line.appendChild(prefix);
+  line.appendChild(body);
+  shellOutput.appendChild(line);
+  return body;
+}
+
+function startTwin(entry) {
+  if (twinMode) {
+    return;
+  }
+  twinMode = true;
+  if (!entry) {
+    entry = echoCommand("twin");
+  }
+  printTo(entry, '<span class="dim">[connected to twin_instance — pid 1337]</span>');
+
+  twinLine(false).textContent = "Hey. Ask me anything — or pick a number:";
+  const sug = document.createElement("div");
+  sug.className = "shell-result";
+  sug.innerHTML =
+    TWIN_SUGGESTIONS.map((s, i) => `  <span class="hl">${i + 1}.</span> ${escapeHtml(s)}`).join("\n") +
+    "\n<span class=\"dim\">(leave with 'exit' or Ctrl+C)</span>";
+  shellOutput.appendChild(sug);
+
+  shellPs1.innerHTML = '<span class="twin-prefix you">you&gt;</span>';
+  shellInput.placeholder = "ask anything — 'exit' to leave";
+  shellInput.focus({ preventScroll: true });
+  keepPromptVisible();
+}
+
+function exitTwin() {
+  twinMode = false;
+  const note = document.createElement("div");
+  note.className = "shell-result";
+  note.innerHTML = '<span class="dim">[twin disconnected — back to bash]</span>';
+  shellOutput.appendChild(note);
+  shellPs1.innerHTML = BASH_PS1_INNER;
+  shellInput.placeholder = "type 'help'";
+  keepPromptVisible();
+}
+
+function twinHandleInput(raw) {
+  const text = raw.trim();
+  if (!text) {
+    return;
+  }
+  if (["exit", "quit", "logout", ":q", ":q!"].includes(text.toLowerCase())) {
+    exitTwin();
+    return;
+  }
+
+  shellHistory.push(text);
+  historyIndex = shellHistory.length;
+
+  let msg = text;
+  if (/^[0-9]$/.test(text) && TWIN_SUGGESTIONS[Number(text) - 1]) {
+    msg = TWIN_SUGGESTIONS[Number(text) - 1];
+  }
+
+  twinLine(true).textContent = msg;
+  const body = twinLine(false);
+  body.classList.add("streaming");
+  shellBusy = true;
+  keepPromptVisible();
+
+  window
+    .twinSend(msg, (soFar) => {
+      body.textContent = soFar;
+      keepPromptVisible();
+    })
+    .then((final) => {
+      body.textContent = final;
+    })
+    .catch((error) => {
+      body.textContent = error.message.startsWith("[")
+        ? error.message
+        : "[connection error - twin unavailable]";
+      console.error(error);
+    })
+    .finally(() => {
+      body.classList.remove("streaming");
+      shellBusy = false;
+      shellInput.focus({ preventScroll: true });
+      keepPromptVisible();
+    });
+}
+
+const twinLaunch = document.getElementById("twinLaunch");
+if (twinLaunch) {
+  twinLaunch.addEventListener("click", () => {
+    if (!twinMode) {
+      startTwin(null);
+    }
+    // the anchor's #prompt navigation steals focus after the click — take it back
+    setTimeout(() => shellInput.focus({ preventScroll: true }), 60);
+  });
 }
 
 // ---------- easter eggs ----------
@@ -759,7 +868,11 @@ shellInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     const value = shellInput.value;
     shellInput.value = "";
-    runCommand(value);
+    if (twinMode) {
+      twinHandleInput(value);
+    } else {
+      runCommand(value);
+    }
     keepPromptVisible();
   } else if (e.key === "ArrowUp") {
     e.preventDefault();
@@ -775,10 +888,17 @@ shellInput.addEventListener("keydown", (e) => {
     }
   } else if (e.key === "Tab") {
     e.preventDefault();
-    tabComplete();
+    if (!twinMode) {
+      tabComplete();
+    }
   } else if (e.key === "l" && e.ctrlKey) {
     e.preventDefault();
     shellOutput.innerHTML = "";
+  } else if (e.key === "c" && e.ctrlKey && !twinMode && !window.getSelection()?.toString()) {
+    e.preventDefault();
+    echoCommand(shellInput.value + "^C");
+    shellInput.value = "";
+    keepPromptVisible();
   }
 });
 
@@ -805,8 +925,20 @@ document.addEventListener("keydown", (e) => {
     return;
   }
 
-  // konami code (ignore while typing in the chat box)
-  if (e.target && e.target.id === "chatInput") {
+  // Ctrl+C / Ctrl+D leave twin mode from anywhere on the page
+  if ((e.key === "c" || e.key === "d") && e.ctrlKey && twinMode && !window.getSelection()?.toString()) {
+    e.preventDefault();
+    const line = document.createElement("div");
+    line.className = "shell-result";
+    line.innerHTML = '<span class="dim">^C</span>';
+    shellOutput.appendChild(line);
+    shellInput.value = "";
+    exitTwin();
+    return;
+  }
+
+  // konami code (ignore while typing — arrows mean history there; use `noclip` instead)
+  if (e.target && e.target.tagName === "INPUT") {
     return;
   }
   const expect = KONAMI[konamiPos];

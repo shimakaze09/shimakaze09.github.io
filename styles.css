@@ -427,97 +427,32 @@ html.fx .cmd-output.on {
   display: flex;
 }
 
-/* ============ TWIN CHAT ============ */
-.chat-wrapper {
-  border: 1px solid var(--muted);
-  background: var(--bg);
-  box-shadow: 0 0 15px rgba(0, 200, 255, 0.05);
-  position: relative;
-}
-
-.chat-wrapper::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--accent), transparent);
-}
-
-.chat-header {
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+/* ============ TWIN (in-shell program) ============ */
+.twin-note {
+  color: var(--text-dim);
   font-size: 11px;
-  background: var(--surface);
+  margin-bottom: 8px;
 }
 
-.chat-header-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.chat-title {
-  color: var(--accent);
-  letter-spacing: 0.1em;
-}
-
-.chat-pid {
-  color: var(--text-dim);
-  font-size: 10px;
-}
-
-.chat-subtitle {
-  color: var(--text-dim);
-  font-size: 10px;
-}
-
-.chat-log {
-  height: 320px;
-  overflow-y: auto;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--muted) transparent;
-}
-
-.msg {
+.twin-line {
   display: flex;
   gap: 10px;
   align-items: baseline;
-  animation: fadeSlide 0.25s ease;
+  margin-bottom: 8px;
 }
 
-@keyframes fadeSlide {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.msg-prefix {
+.twin-prefix {
   flex-shrink: 0;
   font-size: 12px;
   color: var(--accent);
   font-weight: 700;
 }
 
-.msg.user .msg-prefix {
+.twin-prefix.you {
   color: var(--green);
 }
 
-.msg-body {
+.twin-body {
   font-size: 12px;
   line-height: 1.6;
   color: var(--text);
@@ -525,126 +460,11 @@ html.fx .cmd-output.on {
   word-break: break-word;
 }
 
-.msg.user .msg-body {
-  color: #9fd6f0;
-}
-
-.msg-body .typing {
-  display: inline-flex;
-  gap: 4px;
-  align-items: center;
-}
-
-.msg-body .typing span {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent);
-  animation: blink 1s ease-in-out infinite;
-}
-
-.msg-body .typing span:nth-child(2) {
-  animation-delay: 0.15s;
-}
-
-.msg-body .typing span:nth-child(3) {
-  animation-delay: 0.3s;
-}
-
-@keyframes blink {
-
-  0%,
-  80%,
-  100% {
-    opacity: 0.2;
-  }
-
-  40% {
-    opacity: 1;
-  }
-}
-
-.chips {
-  padding: 10px 16px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.chip {
-  font-size: 10px;
-  padding: 4px 10px;
-  border: 1px solid var(--muted);
-  color: var(--text-dim);
-  cursor: pointer;
-  background: transparent;
-  font-family: var(--font-mono);
-  letter-spacing: 0.04em;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-
-.chip:hover {
-  border-color: var(--accent);
+/* blinking block cursor while the twin streams its reply */
+.twin-body.streaming::after {
+  content: '▍';
   color: var(--accent);
-  background: rgba(0, 200, 255, 0.05);
-}
-
-.chip:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.chat-input-row {
-  display: flex;
-  align-items: center;
-  border-top: 1px solid var(--border);
-}
-
-.chat-ps {
-  color: var(--accent);
-  padding-left: 14px;
-}
-
-.chat-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  padding: 12px 10px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--text);
-  caret-color: var(--accent);
-}
-
-.chat-input::placeholder {
-  color: var(--text-dim);
-}
-
-.chat-send {
-  background: transparent;
-  border: none;
-  border-left: 1px solid var(--border);
-  padding: 12px 16px;
-  cursor: pointer;
-  color: var(--text-dim);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  transition: color 0.15s, background 0.15s;
-}
-
-.chat-send:hover {
-  color: var(--accent);
-  background: rgba(0, 200, 255, 0.05);
-}
-
-.chat-send:disabled,
-.chat-input:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+  animation: caret 0.8s step-end infinite;
 }
 
 /* ============ LIVE SHELL ============ */
@@ -996,10 +816,6 @@ body.noclip .chat-wrapper {
 
   .hero-name {
     font-size: 18px;
-  }
-
-  .chat-log {
-    height: 260px;
   }
 
   .sl-left {
